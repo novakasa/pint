@@ -282,6 +282,15 @@ class Quantity(PrettyIPython, SharedRegistryObject):
         else:
             obj = self
 
+        elide = False
+        if "s" in spec:
+            if isinstance(self.magnitude, ndarray):
+                elide = (
+                    "s" in spec
+                    and obj.magnitude.size > np.get_printoptions()["threshold"]
+                )
+            spec = spec.replace("s", "")
+
         # the LaTeX siunitx code
         if "Lx" in spec:
             spec = spec.replace("Lx", "")
@@ -299,13 +308,14 @@ class Quantity(PrettyIPython, SharedRegistryObject):
             ustr = format(obj.units, spec)
 
         mspec = remove_custom_flags(spec)
+
         if isinstance(self.magnitude, ndarray):
             if "L" in spec:
-                mstr = ndarray_to_latex(obj.magnitude, mspec)
+                mstr = ndarray_to_latex(obj.magnitude, mspec, elide=elide)
             elif "H" in spec:
                 allf = r"\[{} {}\]"
                 # this is required to have the magnitude and unit in the same line
-                parts = ndarray_to_latex_parts(obj.magnitude, mspec)
+                parts = ndarray_to_latex_parts(obj.magnitude, mspec, elide=elide)
 
                 if len(parts) > 1:
                     return "\n".join(allf.format(part, ustr) for part in parts)
@@ -314,9 +324,9 @@ class Quantity(PrettyIPython, SharedRegistryObject):
             else:
                 formatter = "{{:{}}}".format(mspec)
                 with printoptions(formatter={"float_kind": formatter.format}):
-                    mstr = format(obj.magnitude).replace("\n", "")
+                    mstr = format(obj.magnitude)  # .replace("\n", "")
         else:
-            mstr = format(obj.magnitude, mspec).replace("\n", "")
+            mstr = format(obj.magnitude, mspec)  # .replace("\n", "")
 
         if "L" in spec:
             mstr = self._exp_pattern.sub(r"\1\\times 10^{\2\3}", mstr)

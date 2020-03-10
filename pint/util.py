@@ -838,15 +838,15 @@ class PrettyIPython:
 
     def _repr_html_(self):
         if "~" in self.default_format:
-            return "{:~H}".format(self)
+            return "{:~Hs}".format(self)
         else:
-            return "{:H}".format(self)
+            return "{:Hs}".format(self)
 
     def _repr_latex_(self):
         if "~" in self.default_format:
-            return "${:~L}$".format(self)
+            return "${:~Ls}$".format(self)
         else:
-            return "${:L}$".format(self)
+            return "${:Ls}$".format(self)
 
     def _repr_pretty_(self, p, cycle):
         if "~" in self.default_format:

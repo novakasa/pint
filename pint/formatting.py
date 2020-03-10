@@ -11,7 +11,7 @@
 import re
 
 from .babel_names import _babel_lengths, _babel_units
-from .compat import babel_parse
+from .compat import babel_parse, np
 
 __JOIN_REG_EXP = re.compile(r"\{\d*\}")
 
@@ -331,43 +331,98 @@ def remove_custom_flags(spec):
     return spec
 
 
+def elided_vector(vec, edgeitems):
+    """
+    generator that iterates over vector, returning index and value.
+    Returns (-1, None) if an ellipsis should be inserted (using the rule
+    from numpy.set_printoptions)
+    """
+    if edgeitems is None or len(vec) <= edgeitems * 2 or edgeitems <= 0:
+        for i, val in enumerate(vec):
+            yield i, val
+    else:
+        for i, val in enumerate(vec[:edgeitems]):
+            yield i, val
+        yield -1, None
+        for j, val in enumerate(vec[len(vec) - edgeitems : len(vec)]):
+            yield len(vec) - edgeitems + j, val
+
+
 def vector_to_latex(vec, fmtfun=lambda x: format(x, ".2f")):
     return matrix_to_latex([vec], fmtfun)
 
 
-def matrix_to_latex(matrix, fmtfun=lambda x: format(x, ".2f")):
+def matrix_to_latex(matrix, fmtfun=lambda x: format(x, ".2f"), elide=False):
     ret = []
+    if elide:
+        edgeitems = np.get_printoptions()["edgeitems"]
+    else:
+        edgeitems = None
 
-    for row in matrix:
-        ret += [" & ".join(fmtfun(f) for f in row)]
+    for r, row in elided_vector(matrix, edgeitems):
+        if r == -1:
+            ellipses = [r"\vdots"] * min(edgeitems * 2 + 1, (matrix.shape[1]))
+            if matrix.shape[1] > edgeitems * 2:
+                ellipses[edgeitems] = r"\ddots"
+            ret += [" & ".join(ellipses)]
+        else:
+            rowstrs = []
+            for c, val in elided_vector(row, edgeitems):
+                if c == -1:
+                    rowstrs.append(r"\dots")
+                else:
+                    rowstrs.append(fmtfun(val))
+            ret += [" & ".join(rowstrs)]
 
     return r"\begin{pmatrix}%s\end{pmatrix}" % "\\\\ \n".join(ret)
 
 
-def ndarray_to_latex_parts(ndarr, fmtfun=lambda x: format(x, ".2f"), dim=()):
+def ndarray_to_latex_parts(
+    ndarr, fmtfun=lambda x: format(x, ".2f"), dim=(), elide=False
+):
     if isinstance(fmtfun, str):
         fmt = fmtfun
         fmtfun = lambda x: format(x, fmt)
+    if elide:
+        edgeitems = np.get_printoptions()["edgeitems"]
+    else:
+        edgeitems = None
 
     if ndarr.ndim == 0:
         _ndarr = ndarr.reshape(1)
         return [vector_to_latex(_ndarr, fmtfun)]
     if ndarr.ndim == 1:
-        return [vector_to_latex(ndarr, fmtfun)]
+        return [vector_to_latex(ndarr, fmtfun, elide)]
     if ndarr.ndim == 2:
-        return [matrix_to_latex(ndarr, fmtfun)]
+        return [matrix_to_latex(ndarr, fmtfun, elide)]
     else:
         ret = []
         if ndarr.ndim == 3:
-            header = ("arr[%s," % ",".join("%d" % d for d in dim)) + "%d,:,:]"
-            for elno, el in enumerate(ndarr):
-                ret += [header % elno + " = " + matrix_to_latex(el, fmtfun)]
+            header = ("arr[%s" % "".join("%d," % d for d in dim)) + "%d,:,:]"
+            for elno, el in elided_vector(ndarr, edgeitems):
+                if elno == -1:
+                    indstrs = (
+                        [str(d) for d in dim]
+                        + [str(edgeitems) + ":" + str(len(ndarr) - edgeitems)]
+                        + [":" for d in ndarr.shape]
+                    )
+                    ret += [r"arr[{}] = \dots".format(",".join(indstrs))]
+                else:
+                    ret += [header % elno + " = " + matrix_to_latex(el, fmtfun, elide)]
         else:
-            for elno, el in enumerate(ndarr):
-                ret += ndarray_to_latex_parts(el, fmtfun, dim + (elno,))
+            for elno, el in elided_vector(ndarr, edgeitems):
+                if elno == -1:
+                    indstrs = (
+                        [str(d) for d in dim]
+                        + [str(edgeitems) + ":" + str(len(ndarr) - edgeitems)]
+                        + [":" for d in ndarr.shape]
+                    )
+                    ret += [r"arr[{}] = \dots".format(",".join(indstrs))]
+                else:
+                    ret += ndarray_to_latex_parts(el, fmtfun, dim + (elno,), elide)
 
         return ret
 
 
-def ndarray_to_latex(ndarr, fmtfun=lambda x: format(x, ".2f"), dim=()):
-    return "\n".join(ndarray_to_latex_parts(ndarr, fmtfun, dim))
+def ndarray_to_latex(ndarr, fmtfun=lambda x: format(x, ".2f"), dim=(), elide=False):
+    return "\n".join(ndarray_to_latex_parts(ndarr, fmtfun, dim, elide))

@@ -348,8 +348,8 @@ def elided_vector(vec, edgeitems):
             yield len(vec) - edgeitems + j, val
 
 
-def vector_to_latex(vec, fmtfun=lambda x: format(x, ".2f")):
-    return matrix_to_latex([vec], fmtfun)
+def vector_to_latex(vec, fmtfun=lambda x: format(x, ".2f"), elide=False):
+    return matrix_to_latex([vec], fmtfun, elide)
 
 
 def matrix_to_latex(matrix, fmtfun=lambda x: format(x, ".2f"), elide=False):
@@ -371,7 +371,20 @@ def matrix_to_latex(matrix, fmtfun=lambda x: format(x, ".2f"), elide=False):
                 if c == -1:
                     rowstrs.append(r"\dots")
                 else:
-                    rowstrs.append(fmtfun(val))
+                    formatted = fmtfun(val)
+                    lparts = formatted.split('E')
+                    if len(lparts)>1:
+                        exp = lparts[1][1:]
+                        sgn = lparts[1][0]
+                        if sgn == '+':
+                            sgn = ''
+                        while exp[0]=='0'and len(exp)>1:
+                            print(exp)
+                            exp = exp[1:]
+                        lval = lparts[0]+r'\times 10^{'+sgn+exp+'}'
+                    else:
+                        lval = lparts[0]
+                    rowstrs.append(lval)
             ret += [" & ".join(rowstrs)]
 
     return r"\begin{pmatrix}%s\end{pmatrix}" % "\\\\ \n".join(ret)
@@ -406,7 +419,7 @@ def ndarray_to_latex_parts(
                         + [str(edgeitems) + ":" + str(len(ndarr) - edgeitems)]
                         + [":" for d in ndarr.shape]
                     )
-                    ret += [r"arr[{}] = \dots".format(",".join(indstrs))]
+                    ret += [r"arr[{}]".format(",".join(indstrs)) + r" = \begin{pmatrix}\dots\end{pmatrix}"]
                 else:
                     ret += [header % elno + " = " + matrix_to_latex(el, fmtfun, elide)]
         else:
@@ -417,7 +430,7 @@ def ndarray_to_latex_parts(
                         + [str(edgeitems) + ":" + str(len(ndarr) - edgeitems)]
                         + [":" for d in ndarr.shape]
                     )
-                    ret += [r"arr[{}] = \dots".format(",".join(indstrs))]
+                    ret += [r"arr[{}]".format(",".join(indstrs)) + r" = \begin{pmatrix}\dots\end{pmatrix}"]
                 else:
                     ret += ndarray_to_latex_parts(el, fmtfun, dim + (elno,), elide)
 
@@ -425,4 +438,4 @@ def ndarray_to_latex_parts(
 
 
 def ndarray_to_latex(ndarr, fmtfun=lambda x: format(x, ".2f"), dim=(), elide=False):
-    return "\n".join(ndarray_to_latex_parts(ndarr, fmtfun, dim, elide))
+    return "\n \quad ".join(ndarray_to_latex_parts(ndarr, fmtfun, dim, elide))

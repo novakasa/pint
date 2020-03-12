@@ -311,7 +311,12 @@ class Quantity(PrettyIPython, SharedRegistryObject):
 
         if isinstance(self.magnitude, ndarray):
             if "L" in spec:
-                mstr = ndarray_to_latex(obj.magnitude, mspec, elide=elide)
+                parts = ndarray_to_latex_parts(obj.magnitude, mspec, elide=elide)
+
+                if len(parts)>1:
+                    return " \n\quad ".join(allf.format(part, ustr) for part in parts)
+
+                mstr = parts[0]
             elif "H" in spec:
                 allf = r"\[{} {}\]"
                 # this is required to have the magnitude and unit in the same line

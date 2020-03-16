@@ -836,13 +836,16 @@ class SharedRegistryObject:
 class PrettyIPython:
     """Mixin to add pretty-printers for IPython"""
 
+    """
     def _repr_html_(self):
         if "~" in self.default_format:
             return "{:~Hs}".format(self)
         else:
             return "{:Hs}".format(self)
+    """
 
     def _repr_latex_(self):
+        return "${:~.2ELs}$".format(self)
         if "~" in self.default_format:
             return "${:~Ls}$".format(self)
         else:

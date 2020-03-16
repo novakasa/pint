@@ -371,19 +371,21 @@ def matrix_to_latex(matrix, fmtfun=lambda x: format(x, ".2f"), elide=False):
                 if c == -1:
                     rowstrs.append(r"\dots")
                 else:
-                    formatted = fmtfun(val)
-                    lparts = formatted.split('E')
-                    if len(lparts)>1:
-                        exp = lparts[1][1:]
-                        sgn = lparts[1][0]
-                        if sgn == '+':
-                            sgn = ''
-                        while exp[0]=='0'and len(exp)>1:
-                            print(exp)
-                            exp = exp[1:]
-                        lval = lparts[0]+r'\times 10^{'+sgn+exp+'}'
+                    if np.ma.is_masked(val):
+                        lval = "--"
                     else:
-                        lval = lparts[0]
+                        formatted = fmtfun(val)
+                        lparts = formatted.split('E')
+                        if len(lparts)>1:
+                            exp = lparts[1][1:]
+                            sgn = lparts[1][0]
+                            if sgn == '+':
+                                sgn = ''
+                            while exp[0]=='0'and len(exp)>1:
+                                exp = exp[1:]
+                            lval = lparts[0]+r'\times 10^{'+sgn+exp+'}'
+                        else:
+                            lval = lparts[0]
                     rowstrs.append(lval)
             ret += [" & ".join(rowstrs)]
 
